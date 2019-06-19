@@ -49,11 +49,13 @@ public:
     virtual QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     virtual bool setData(const QModelIndex &index, const QVariant &value, int role = Qt::EditRole) override;
     Qt::DropActions supportedDropActions() const override;
+    Qt::DropActions supportedDragActions() const override;
 
     /// flags, mostly to support drag&drop
     virtual Qt::ItemFlags flags(const QModelIndex &index) const override;
     QStringList mimeTypes() const override;
     bool dropMimeData(const QMimeData * data, Qt::DropAction action, int row, int column, const QModelIndex & parent) override;
+    QMimeData *mimeData(const QModelIndexList &indexes) const override;
 
     virtual int rowCount(const QModelIndex &) const override
     {
@@ -83,7 +85,7 @@ public:
     /**
      * Adds the given mod to the list at the given index - if the list supports custom ordering
      */
-    bool installMod(const QString& filename);
+    bool installMod(const QString& filename, bool move);
 
     /// Deletes all the selected mods
     virtual bool deleteMods(const QModelIndexList &indexes);

@@ -34,7 +34,6 @@ static void viewItemTextLayout(QTextLayout &textLayout, int lineWidth, qreal &he
     height = 0;
     widthUsed = 0;
     textLayout.beginLayout();
-    QString str = textLayout.text();
     while (true)
     {
         QTextLine line = textLayout.createLine();
@@ -190,11 +189,13 @@ void ListViewDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opti
 
     QStyle *style = opt.widget ? opt.widget->style() : QApplication::style();
 
+    // FIXME: Things go really weird with long instance names
     // const int iconSize =  style->pixelMetric(QStyle::PM_IconViewIconSize);
     const int iconSize = 48;
     QRect iconbox = opt.rect;
-    const int textMargin = style->pixelMetric(QStyle::PM_FocusFrameHMargin, 0, opt.widget) + 1;
+    const int textMargin = style->pixelMetric(QStyle::PM_FocusFrameHMargin, nullptr, opt.widget) + 1;
     QRect textRect = opt.rect;
+    textRect.setWidth(qMin(textRect.width(), iconbox.width()));
     QRect textHighlightRect = textRect;
     // clip the decoration on top, remove width padding
     textRect.adjust(textMargin, iconSize + textMargin + 5, -textMargin, 0);
@@ -299,7 +300,7 @@ void ListViewDelegate::paint(QPainter *painter, const QStyleOptionViewItem &opti
     const int lineCount = textLayout.lineCount();
 
     const QRect layoutRect = QStyle::alignedRect(
-        opt.direction, opt.displayAlignment, QSize(textRect.width(), int(height)), textRect);
+       opt.direction, opt.displayAlignment, QSize(textRect.width(), int(height)), textRect);
     const QPointF position = layoutRect.topLeft();
     for (int i = 0; i < lineCount; ++i)
     {
@@ -340,83 +341,3 @@ QSize ListViewDelegate::sizeHint(const QStyleOptionViewItem &option,
     QSize sz(100, height);
     return sz;
 }
-
-class NoReturnTextEdit: public QTextEdit
-{
-    Q_OBJECT
-public:
-    explicit NoReturnTextEdit(QWidget *parent) : QTextEdit(parent)
-    {
-        setTextInteractionFlags(Qt::TextEditorInteraction);
-        setHorizontalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
-        setVerticalScrollBarPolicy(Qt::ScrollBarPolicy::ScrollBarAlwaysOff);
-    }
-    bool event(QEvent * event) override
-    {
-        auto eventType = event->type();
-        if(eventType == QEvent::KeyPress || eventType == QEvent::KeyRelease)
-        {
-            QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
-            auto key = keyEvent->key();
-            if (key == Qt::Key_Return || key == Qt::Key_Enter)
-            {
-                emit editingDone();
-                return true;
-            }
-            if(key == Qt::Key_Tab)
-            {
-                return true;
-            }
-        }
-        return QTextEdit::event(event);
-    }
-signals:
-    void editingDone();
-};
-
-void ListViewDelegate::updateEditorGeometry(QWidget* editor, const QStyleOptionViewItem& option, const QModelIndex& index) const
-{
-    const int iconSize = 48;
-    QRect textRect = option.rect;
-    // QStyle *style = option.widget ? option.widget->style() : QApplication::style();
-    textRect.adjust(0, iconSize + 5, 0, 0);
-    editor->setGeometry(textRect);
-}
-
-void ListViewDelegate::setEditorData(QWidget* editor, const QModelIndex& index) const
-{
-    auto text = index.data(Qt::EditRole).toString();
-    QTextEdit * realeditor = qobject_cast<NoReturnTextEdit *>(editor);
-    realeditor->setAlignment(Qt::AlignHCenter | Qt::AlignTop);
-    realeditor->append(text);
-    realeditor->selectAll();
-    realeditor->document()->clearUndoRedoStacks();
-}
-
-void ListViewDelegate::setModelData(QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const
-{
-    QTextEdit * realeditor = qobject_cast<NoReturnTextEdit *>(editor);
-    QString text = realeditor->toPlainText();
-    text.replace(QChar('\n'), QChar(' '));
-    text = text.trimmed();
-    if(text.size() != 0)
-    {
-        model->setData(index, text);
-    }
-}
-
-QWidget * ListViewDelegate::createEditor(QWidget* parent, const QStyleOptionViewItem& option, const QModelIndex& index) const
-{
-    auto editor = new NoReturnTextEdit(parent);
-    connect(editor, &NoReturnTextEdit::editingDone, this, &ListViewDelegate::editingDone);
-    return editor;
-}
-
-void ListViewDelegate::editingDone()
-{
-    NoReturnTextEdit *editor = qobject_cast<NoReturnTextEdit *>(sender());
-    emit commitData(editor);
-    emit closeEditor(editor);
-}
-
-#include "InstanceDelegate.moc"

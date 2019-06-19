@@ -145,6 +145,8 @@ SET(MULTIMC_SOURCES
     # GUI - dialogs
     dialogs/AboutDialog.cpp
     dialogs/AboutDialog.h
+    dialogs/CheckableInputDialog.cpp
+    dialogs/CheckableInputDialog.h
     dialogs/ProfileSelectDialog.cpp
     dialogs/ProfileSelectDialog.h
     dialogs/CopyInstanceDialog.cpp
@@ -258,6 +260,7 @@ SET(MULTIMC_UIS
     pages/modplatform/ImportPage.ui
 
     # Dialogs
+    dialogs/CheckableInputDialog.ui
     dialogs/CopyInstanceDialog.ui
     dialogs/NewComponentDialog.ui
     dialogs/NewInstanceDialog.ui
@@ -271,10 +274,12 @@ SET(MULTIMC_UIS
     dialogs/UpdateDialog.ui
     dialogs/NotificationDialog.ui
     dialogs/SkinUploadDialog.ui
+    dialogs/VersionSelectDialog.ui
 
     # Widgets/other
     widgets/CustomCommands.ui
     widgets/MCModInfoFrame.ui
+    widgets/VersionSelectWidget.ui
 )
 
 set(MULTIMC_QRCS

@@ -31,6 +31,7 @@
 #include <QtWidgets/QAction>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QButtonGroup>
+#include <QtWidgets/QCheckBox>
 #include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QHeaderView>
 #include <QtWidgets/QMainWindow>
@@ -74,6 +75,7 @@
 #include "groupview/InstanceDelegate.h"
 #include "widgets/LabeledToolButton.h"
 #include "widgets/ServerStatus.h"
+#include "dialogs/CheckableInputDialog.h"
 #include "dialogs/NewInstanceDialog.h"
 #include "dialogs/ProgressDialog.h"
 #include "dialogs/AboutDialog.h"
@@ -661,6 +663,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new MainWindow
     // Create the instance list widget
     {
         view = new GroupView(ui->centralWidget);
+        view->setTextElideMode(Qt::TextElideMode::ElideRight);
 
         view->setSelectionMode(QAbstractItemView::SingleSelection);
         // FIXME: leaks ListViewDelegate
@@ -701,6 +704,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new MainWindow
 
     // model reset -> selection is invalid. All the instance pointers are wrong.
     connect(MMC->instances().get(), &InstanceList::dataIsInvalid, this, &MainWindow::selectionBad);
+
+    // handle newly added instances
+    connect(MMC->instances().get(), &InstanceList::instanceAdded, this, &MainWindow::instanceAdded);
 
     // When the global settings page closes, we want to know about it and update our state
     connect(MMC, &MultiMC::globalSettingsClosed, this, &MainWindow::globalSettingsClosed);
@@ -845,7 +851,7 @@ void MainWindow::showInstanceContextMenu(const QPoint &pos)
     actionSep->setSeparator(true);
 
     bool onInstance = view->indexAt(pos).isValid();
-    if (onInstance)
+    if (onInstance && m_selectedInstance)
     {
         actions = ui->instanceToolBar->actions();
 
@@ -1365,6 +1371,7 @@ void MainWindow::finalizeInstance(InstancePtr inst)
         if(update)
         {
             loadDialog.setSkipButton(true, tr("Abort"));
+            loadDialog.setSkipButton(true, tr("Abort"));
             loadDialog.execWithTask(update.get());
         }
     }
@@ -1664,6 +1671,7 @@ void MainWindow::on_actionDeleteInstance_triggered()
     {
         return;
     }
+    auto id = m_selectedInstance->id();
     auto response = CustomMessageBox::selectable(
         this,
         tr("CAREFUL!"),
@@ -1674,7 +1682,7 @@ void MainWindow::on_actionDeleteInstance_triggered()
     )->exec();
     if (response == QMessageBox::Yes)
     {
-        MMC->instances()->deleteInstance(m_selectedInstance->id());
+        MMC->instances()->deleteInstance(id);
     }
 }
 
@@ -1691,7 +1699,15 @@ void MainWindow::on_actionRenameInstance_triggered()
 {
     if (m_selectedInstance)
     {
-        view->edit(view->currentIndex());
+        CheckableInputDialog dialog(this);
+        dialog.setWindowTitle(tr("Rename"));
+        dialog.setText(tr("Enter new name for the instance:"));
+        dialog.setCheckboxText(tr("Rename instance folder"));
+        dialog.setExtraText(tr("WARNING: Renaming the instance folder may break shortcuts and automation you made!"));
+        if(dialog.exec() == QDialog::Accepted && !dialog.getInput().isEmpty())
+        {
+            m_selectedInstance->setName(dialog.getInput(), dialog.checkboxChecked());
+        }
     }
 }
 
@@ -1820,6 +1836,7 @@ void MainWindow::instanceChanged(const QModelIndex &current, const QModelIndex &
         ui->actionLaunchInstanceOffline->setEnabled(m_selectedInstance->canLaunch());
         ui->actionExportInstance->setEnabled(m_selectedInstance->canExport());
         ui->renameButton->setText(m_selectedInstance->name());
+        ui->actionRenameInstance->setDisabled(m_selectedInstance->isRunning());
         m_statusLeft->setText(m_selectedInstance->getStatusbarDescription());
         updateInstanceToolIcon(m_selectedInstance->iconKey());
 
@@ -1834,6 +1851,11 @@ void MainWindow::instanceChanged(const QModelIndex &current, const QModelIndex &
         selectionBad();
         return;
     }
+}
+
+void MainWindow::instanceAdded(QString id)
+{
+    setSelectedInstanceById(id);
 }
 
 void MainWindow::instanceDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight)

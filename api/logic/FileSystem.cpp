@@ -304,6 +304,10 @@ QString RemoveInvalidFilenameChars(QString string, QChar replaceWith)
         {
             string[i] = replaceWith;
         }
+        else if(string[i] > 127) // non ASCII
+        {
+            string[i] = replaceWith;
+        }
     }
     return string;
 }
@@ -321,7 +325,7 @@ QString DirNameFromString(QString string, QString inDir)
         }
         else
         {
-            dirName = baseName + QString::number(num);;
+            dirName = baseName + QString::number(num);
         }
 
         // If it's over 9000

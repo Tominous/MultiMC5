@@ -175,6 +175,11 @@ QString BaseInstance::instanceRoot() const
     return m_rootDir;
 }
 
+void BaseInstance::setInstanceRoot(QString newRoot)
+{
+    m_rootDir = std::move(newRoot);
+}
+
 SettingsObjectPtr BaseInstance::settings() const
 {
     return m_settings;
@@ -225,11 +230,23 @@ QString BaseInstance::iconKey() const
     return m_settings->get("iconKey").toString();
 }
 
-void BaseInstance::setName(QString val)
+void BaseInstance::setName(QString val, bool requestDirChange)
 {
-    //FIXME: if no change, do not set. setting involves saving a file.
+    if(m_settings->get("name") == val)
+    {
+        return;
+    }
+
     m_settings->set("name", val);
     emit propertiesChanged(this);
+    if(requestDirChange && !isRunning())
+    {
+        emit instanceDirChangeRequest(this);
+    }
+    else if(requestDirChange && isRunning())
+    {
+        qWarning() << "Tried to rename running instance with folder";
+    }
 }
 
 QString BaseInstance::name() const
